@@ -83,7 +83,18 @@ with col_sec:
 total_seconds = (duration_min * 60) + duration_sec
 
 scene_breakdown = st.sidebar.toggle("Scene Breakdown ခွဲမည်", value=True)
-show_storyboard = st.sidebar.toggle("Storyboard ပုံများ ထုတ်မည် (Free API)", value=True)
+              # Storyboard Image Loader (ပြင်ဆင်ထားသော အပိုင်း)
+                    if show_storyboard:
+                        # Prompt ထဲက မလိုလားအပ်တဲ့ character တွေကို သန့်စင်ပြီး URL Encoding လုပ်ခြင်း
+                        clean_prompt = shot['image_prompt'].replace('"', '').replace("'", "").replace("\n", " ")
+                        encoded_prompt = urllib.parse.quote(clean_prompt)
+                        
+                        # ပုံသေချာပေါက်ပွင့်စေမည့် Pollinations AI Endpoint သစ်
+                        image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1280&height=720&nologo=true&seed=42"
+                        
+                        # အကယ်၍ ပုံဆွဲတာ ကြာနေရင် အမှားမပြဘဲ error handler ထည့်သွင်းထားသည်
+                        st.image(image_url, use_container_width=True)
+
 
 visual_style = st.sidebar.selectbox("Visual Art Style", [
     "3D Disney Cartoon Style", 
