@@ -6,32 +6,46 @@ from google.genai import types
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(
-    page_title="AI Director & Storyboarder",
+    page_title="AI Director & Storyboarder Pro",
     page_icon="🎬",
     layout="wide"
 )
 
-# CUSTOM CSS (Storyboard Grid Style)
+# CUSTOM CSS (Dark Modern Cinema Theme)
 st.markdown("""
 <style>
     .main { background-color: #0f172a; color: #f8fafc; }
     .storyboard-card {
         background-color: #1e293b;
-        border-radius: 15px;
-        padding: 15px;
+        border-radius: 12px;
+        padding: 18px;
         margin-bottom: 25px;
         border: 1px solid #334155;
     }
     .scene-header {
         background: linear-gradient(90deg, #38bdf8, #0369a1);
-        padding: 10px 20px;
+        padding: 12px 20px;
         border-radius: 8px;
         color: white;
         font-weight: bold;
-        margin-bottom: 20px;
+        margin-top: 30px;
+        margin-bottom: 15px;
+        font-size: 18px;
     }
-    .shot-info { font-size: 14px; color: #94a3b8; margin-top: 10px; }
-    .prompt-text { font-style: italic; font-size: 12px; color: #38bdf8; }
+    .shot-title {
+        color: #38bdf8;
+        font-weight: bold;
+        font-size: 16px;
+        margin-bottom: 10px;
+    }
+    .audio-box {
+        background-color: #0f172a;
+        border-left: 3px solid #e2e8f0;
+        padding: 8px 12px;
+        border-radius: 4px;
+        margin-top: 10px;
+        font-size: 14px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -45,104 +59,55 @@ if not API_KEY:
     st.sidebar.warning("⚠️ API Key လိုအပ်နေပါသည်။")
     API_KEY = st.sidebar.text_input("Enter Gemini API Key:", type="password")
 
-# 3. SIDEBAR CONTROLS
-st.sidebar.title("🎬 AI Director Pro")
-lang = st.sidebar.selectbox("Language", ["မြန်မာစာ (Burmese)", "English"])
-visual_style = st.sidebar.selectbox("Visual Style", [
-    "3D Disney Animation", "Japanese Anime Style", "Cinematic Realistic", "Cyberpunk Art"
+# 3. SIDEBAR CONTROLS (ပြန်လည်ဖြည့်စွက်ထားသော Panel)
+st.sidebar.title("🎬 Director's Control Panel")
+st.sidebar.markdown("---")
+
+lang = st.sidebar.selectbox("Language (ဘာသာစကား)", ["မြန်မာစာ (Burmese)", "English"])
+
+# Genre ရွေးချယ်မှုစနစ် (Drama, Funny, Sci-Fi, Horror, Action)
+genre = st.sidebar.selectbox("Story Genre (ဇာတ်လမ်းအမျိုးအစား)", [
+    "Drama (ရသစုံ ဒရမ်မာ)", 
+    "Comedy/Funny (ဟာသ)", 
+    "Horror/Thriller (သည်းထိတ်ရင်ဖို)", 
+    "Action/Adventure (အက်ရှင်)", 
+    "Sci-Fi/Fantasy (သိပ္ပံနှင့် စိတ်ကူးယဉ်)"
 ])
-character_desc = st.sidebar.text_area("Character Consistency", "ဥပမာ- လူငယ်လေး မောင်မောင်၊ အပြာရောင်အင်္ကျီဝတ်ထားသည်။")
-show_storyboard = st.sidebar.toggle("Generate Storyboard Images (Free API)", value=True)
+
+# မိနစ် နှင့် စက္ကန့် ခွဲခြားရွေးချယ်ခွင့်
+st.sidebar.markdown("**Video Duration (ဗီဒီယိုကြာချိန်)**")
+col_min, col_sec = st.sidebar.columns(2)
+with col_min:
+    duration_min = st.number_input("မိနစ် (Min)", min_value=0, max_value=60, value=0)
+with col_sec:
+    duration_sec = st.number_input("စက္ကန့် (Sec)", min_value=0, max_value=59, value=30)
+
+total_seconds = (duration_min * 60) + duration_sec
+
+scene_breakdown = st.sidebar.toggle("Scene Breakdown ခွဲမည်", value=True)
+show_storyboard = st.sidebar.toggle("Storyboard ပုံများ ထုတ်မည် (Free API)", value=True)
+
+visual_style = st.sidebar.selectbox("Visual Art Style", [
+    "3D Disney Cartoon Style", 
+    "Japanese Anime Style", 
+    "Cinematic Live-Action", 
+    "Cyberpunk Digital Art"
+])
+
+character_desc = st.sidebar.text_area("Character Consistency (ဇာတ်ကောင်ပုံစံ)", 
+    placeholder="ဥပမာ- မောင်မောင်: အသက် ၁၅ နှစ်၊ မျက်မှန်တပ်ထားသည်၊ အပြာရောင်ဂျာကင်ဝတ်ဆင်သည်။")
 
 # 4. MAIN INTERFACE
-st.title("🎬 AI Director & Visual Storyboard")
-user_story = st.text_area("✍️ ဇာတ်လမ်း သို့မဟုတ် ခေါင်းစဉ် ရိုက်ထည့်ပါ :", height=100)
+st.title("🎬 AI Director Workspace")
+st.caption("From Concept to Visual Storyboard - Powered by Gemini 2.5 Flash")
+st.markdown("---")
 
-# Gemini ကို JSON Format နဲ့ ပြန်ခိုင်းမယ် (ဒါမှ Image တွေကို ပတ်ထုတ်လို့ရမှာပါ)
+user_story = st.text_area("✍️ ဇာတ်လမ်းအကျဉ်း သို့မဟုတ် ခေါင်းစဉ်ကို ရိုက်ထည့်ပါ (ဗလာထားပါက AI မှ Random ဖန်တီးပေးမည်) :", height=100)
+
+# SYSTEM INSTRUCTION
 system_prompt = f"""
-မင်းက ရုပ်ရှင်ဒါရိုက်တာနဲ့ Storyboard Artist ဖြစ်တယ်။
-ငါပေးတဲ့ ဇာတ်လမ်းကို အခြေခံပြီး ဒါရိုက်တာတစ်ယောက်လို တွေးခေါ်ကာ JSON format နဲ့သာ ပြန်ပေးပါ။
+မင်းက ကမ္ဘာကျော် ရုပ်ရှင်ဒါရိုက်တာနဲ့ ဇာတ်ညွှန်းရေးဆရာ၊ Storyboard Artist ဖြစ်တယ်။ ငါပေးတဲ့ အိုင်ဒီယာအပေါ် အခြေခံပြီး JSON format နဲ့သာ ပြန်ပေးပါ။
 
-JSON Structure:
-{{
-  "title": "ဇာတ်လမ်းခေါင်းစဉ်",
-  "full_story": "{lang} ဖြင့် ရေးသားထားသော ဇာတ်လမ်းအကျဉ်း",
-  "scenes": [
-    {{
-      "scene_number": 1,
-      "location_time": "INT. ROOM - DAY",
-      "narration": "အခန်းကြောင်းပြော သို့မဟုတ် Dialogue",
-      "shots": [
-        {{
-          "shot_number": 1,
-          "duration": "3s",
-          "description": "{lang} ဖြင့် Shot အကြောင်းပြချက်",
-          "image_prompt": "English prompt for image generation: {visual_style}, {character_desc}, detailed, high quality",
-          "video_prompt": "English movement instructions",
-          "sound_prompt": "Sound effect and music cue"
-        }}
-      ]
-    }}
-  ]
-}}
-မှတ်ချက်: Image prompts များကို အင်္ဂလိပ်လိုသာ ရေးပါ။ အဖြေကို JSON သီးသန့်သာ ပြန်ပေးပါ။
-"""
-
-if st.button("🚀 Generate Storyboard"):
-    if not API_KEY:
-        st.error("API Key ထည့်ပေးပါ။")
-    else:
-        with st.spinner("🎬 AI Director က Storyboard ဆွဲနေပါတယ်..."):
-            try:
-                client = genai.Client(api_key=API_KEY)
-                response = client.models.generate_content(
-                    model='gemini-2.0-flash',
-                    contents=user_story if user_story else "Random emotional story",
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_prompt,
-                        response_mime_type="application/json", # JSON Mode ကို သုံးထားပါတယ်
-                        temperature=0.7
-                    )
-                )
-                
-                # JSON ကို ဖတ်မယ်
-                data = json.loads(response.text)
-                
-                # ၁။ ဇာတ်လမ်း အကျဉ်းပြမယ်
-                st.header(data['title'])
-                st.info(data['full_story'])
-                
-                # ၂။ Scenes တွေကို ပတ်ထုတ်မယ်
-                for scene in data['scenes']:
-                    st.markdown(f"<div class='scene-header'>SCENE {scene['scene_number']}: {scene['location_time']}</div>", unsafe_allow_html=True)
-                    st.write(f"💬 **Narration:** {scene['narration']}")
-                    
-                    # Shots တွေကို Grid နဲ့ ပြမယ်
-                    cols = st.columns(2) # တစ်တန်းကို ၂ ပုံနှုန်းပြမယ်
-                    for idx, shot in enumerate(scene['shots']):
-                        with cols[idx % 2]:
-                            st.markdown("<div class='storyboard-card'>", unsafe_allow_html=True)
-                            
-                            # Storyboard Image Generation (Pollinations.ai)
-                            if show_storyboard:
-                                # Prompt ကို URL format ပြောင်းတယ်
-                                encoded_prompt = urllib.parse.quote(shot['image_prompt'])
-                                # Seed ထည့်ပေးခြင်းဖြင့် ဇာတ်ကောင် မပြောင်းအောင် အနည်းငယ် ထိန်းတယ်
-                                image_url = f"https://pollinations.ai/p/{encoded_prompt}?width=1280&height=720&nologo=true&seed=42"
-                                st.image(image_url, caption=f"Shot {shot['shot_number']} ({shot['duration']})", use_container_width=True)
-                            
-                            st.write(f"🎬 **Action:** {shot['description']}")
-                            st.markdown(f"<div class='shot-info'>🔊 {shot['sound_prompt']}</div>", unsafe_allow_html=True)
-                            
-                            with st.expander("👁️ View Technical Prompts"):
-                                st.write("**Image Prompt:**")
-                                st.code(shot['image_prompt'])
-                                st.write("**Video Motion:**")
-                                st.code(shot['video_prompt'])
-                                
-                            st.markdown("</div>", unsafe_allow_html=True)
-                
-                st.balloons()
-                
-            except Exception as e:
-                st.error(f"Error: {e}")
+သတ်မှတ်ချက်များ:
+၁။ ဇာတ်လမ်းပုံစံ: {genre} အမျိုးအစားဖြစ်ပြီး စာရေးဆရာစတိုင် စွဲဆောင်မှုရှိရမည်။ ဒါရိုက်တာတွေ ကြိုက်မယ့် Strong Conflict ပါရမည်။
+၂။ ဘာသာစကား: {lang} ဖြင့် ဇာတ်လမ်း၊ ဇာတ်ညွှန်းနှင့် Shot Action များကို ရေးသားပါ။
